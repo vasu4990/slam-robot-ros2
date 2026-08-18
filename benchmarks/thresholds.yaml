@@ -1,0 +1,15 @@
+simulation_reference_only: true
+trajectory:
+  ate_rmse_m_max: 0.20
+  rpe_translation_rmse_m_max: 0.10
+  rpe_yaw_rmse_rad_max: 0.12
+loop_closure:
+  mean_relative_translation_error_m_max: 0.20
+  mean_relative_yaw_error_rad_max: 0.15
+map:
+  known_ratio_min: 0.20
+resource:
+  slam_toolbox_peak_rss_mb_max: 1500
+notes:
+  - Thresholds are engineering regression targets for the reference simulation, not measured hardware specifications.
+  - Tighten only after repeatable baseline runs are archived.
