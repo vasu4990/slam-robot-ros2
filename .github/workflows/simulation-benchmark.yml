@@ -1,0 +1,17 @@
+name: Gazebo Benchmark (manual)
+on:
+  workflow_dispatch:
+permissions: {contents: read}
+jobs:
+  headless-gazebo-smoke:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Explain evidence scope
+        run: |
+          echo 'This workflow is intentionally manual until Lyrical+Jetty headless runtime is proven stable on the GitHub runner.'
+          echo 'A future green run may set gazebo runtime evidence, but must never set hardware validation flags.'
+      - name: Static simulation contract
+        run: |
+          python -m pip install PyYAML
+          python tools/simulation_lint.py
