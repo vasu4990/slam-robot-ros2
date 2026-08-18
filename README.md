@@ -1,41 +1,105 @@
 # SLAM Robot — ROS 2
 
-[![Static Checks](https://github.com/vasu4990/slam-robot-ros2/actions/workflows/checks.yml/badge.svg)](https://github.com/vasu4990/slam-robot-ros2/actions/workflows/checks.yml)
+[![Engineering CI](https://github.com/vasu4990/slam-robot-ros2/actions/workflows/checks.yml/badge.svg)](https://github.com/vasu4990/slam-robot-ros2/actions/workflows/checks.yml)
 
-A reusable ROS 2 package for a small differential-drive robot performing 2D LiDAR mapping with `slam_toolbox`.
+An engineering-grade ROS 2 stack for a small differential-drive robot performing **2D LiDAR SLAM and pose-graph localization with `slam_toolbox`**.
 
-> **Status:** ROS package/reference architecture complete; a real robot must still provide calibrated `/scan`, `/odom`, and the `odom → base_link` transform. Sensor drivers and base firmware are hardware-specific and intentionally not faked here.
+The project is built around a strict robotics contract: sensor/odometry quality first, unambiguous TF ownership, lifecycle-managed mapping/localization, standard diagnostics, repeatable rosbag experiments, machine-readable validation state, and CI that checks both offline contracts and a real ROS build.
 
-The package is structured for a modern supported ROS 2 distribution and follows the standard `ament_python` package layout.
+> **Reference platform:** ROS 2 **Lyrical Luth (LTS)**.  
+> **Status:** software/reference architecture upgraded; simulation and physical-robot mapping/localization remain explicitly unvalidated until evidence is recorded.
 
-## Data flow
+## Why this repository is different
+
+A basic SLAM repository often contains a launch file, a YAML file and a URDF. This repository also includes:
+
+- mapping **and localization** lifecycle launches;
+- canonical `map -> odom -> base_footprint -> base_link -> laser_link` ownership;
+- `slam_toolbox` mapping/localization parameter profiles;
+- a structured differential-drive xacro model;
+- standard `/diagnostics` health reporting for scan, odometry, map and TF;
+- deterministic synthetic scan/odometry input for graph-level smoke tests;
+- machine-readable robot/topic/frame/geometry contracts;
+- config and URDF contract linters;
+- evidence-based maturity gates;
+- P2/P5 occupancy-map metrics;
+- odometry trace metrics;
+- reproducible rosbag benchmark guidance;
+- Lyrical build/test CI using ROS tooling;
+- failure-mode, tuning, validation and performance documentation.
+
+## Architecture
 
 ```mermaid
 flowchart LR
     L[LiDAR driver] -->|/scan| S[slam_toolbox]
-    B[Base/encoder driver] -->|/odom| S
-    B -->|odom → base_link TF| TF[TF tree]
-    R[robot_state_publisher] -->|base_link → laser_link| TF
-    S -->|map → odom TF| TF
-    S -->|/map| RV[RViz / map consumer]
+    O[Odometry / state estimator] -->|/odom| S
+    O -->|odom -> base_footprint| TF[TF]
+    R[robot_state_publisher] -->|base_footprint -> base_link -> laser_link| TF
+    S -->|map -> odom| TF
+    S -->|/map| MAP[Occupancy map]
+    L --> H[Health monitor]
+    O --> H
+    MAP --> H
+    TF --> T[TF monitor]
+    H --> D[/diagnostics]
+    T --> D
 ```
 
-## Expected TF tree
+See [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md).
+
+## TF contract
 
 ```text
-map
-└── odom
-    └── base_link
-        ├── laser_link
-        ├── left_wheel_link
-        └── right_wheel_link
+map                         <- slam_toolbox
+└── odom                    <- local odometry frame
+    └── base_footprint      <- base driver/state estimator publishes this edge
+        └── base_link       <- robot_state_publisher
+            ├── laser_link
+            ├── left_wheel_link
+            └── right_wheel_link
 ```
 
-See [`docs/TF_TREE.md`](docs/TF_TREE.md).
+**No two nodes should publish the same TF edge.** See [`docs/TF_CONTRACT.md`](docs/TF_CONTRACT.md).
 
-## Requirements
+## Repository structure
 
-Install ROS 2, `slam_toolbox`, `robot_state_publisher`, `xacro`, and your LiDAR/base drivers. In a workspace:
+```text
+.
+├── config/
+│   ├── robot.yaml
+│   ├── diagnostics.yaml
+│   ├── slam_toolbox.yaml
+│   ├── slam_localization.yaml
+│   └── validation.yaml
+├── launch/
+│   ├── bringup.launch.py
+│   ├── mapping.launch.py
+│   ├── localization.launch.py
+│   ├── diagnostics.launch.py
+│   ├── robot_state.launch.py
+│   └── synthetic_smoke.launch.py
+├── slam_robot_ros2/
+│   ├── contracts.py
+│   ├── diagnostics.py
+│   ├── synthetic_inputs.py
+│   └── tf_monitor.py
+├── urdf/robot.urdf.xacro
+├── tools/
+│   ├── config_lint.py
+│   ├── generate_report.py
+│   ├── map_metrics.py
+│   ├── odom_metrics.py
+│   ├── release_gate.py
+│   └── urdf_lint.py
+├── tests/
+├── examples/
+└── docs/
+```
+
+## Build
+
+On a supported ROS 2 Lyrical system:
 
 ```bash
 mkdir -p ~/slam_ws/src
@@ -47,65 +111,124 @@ colcon build --symlink-install
 source install/setup.bash
 ```
 
+## Preflight before mapping
+
+Your hardware stack must already provide `/scan`, `/odom`, and `odom -> base_footprint`.
+
+```bash
+ros2 topic hz /scan
+ros2 topic hz /odom
+ros2 run tf2_ros tf2_echo odom base_footprint
+ros2 run tf2_ros tf2_echo base_link laser_link
+```
+
+Then run the monitors:
+
+```bash
+ros2 launch slam_robot_ros2 diagnostics.launch.py
+ros2 topic echo /diagnostics
+```
+
 ## Mapping
 
-With the LiDAR and odometry drivers already publishing data:
+```bash
+ros2 launch slam_robot_ros2 bringup.launch.py mode:=mapping use_sim_time:=false
+```
+
+Or only the SLAM lifecycle node:
 
 ```bash
 ros2 launch slam_robot_ros2 mapping.launch.py
 ```
 
-Useful overrides:
+## Localization
+
+Use a **serialized SLAM Toolbox pose graph**:
 
 ```bash
-ros2 launch slam_robot_ros2 mapping.launch.py scan_topic:=/scan use_sim_time:=false rviz:=true
+ros2 launch slam_robot_ros2 localization.launch.py \
+  map_file_name:=/absolute/path/to/site_map
 ```
 
-Before expecting a map, verify:
+See [`docs/LOCALIZATION_WORKFLOW.md`](docs/LOCALIZATION_WORKFLOW.md).
+
+## Synthetic graph smoke test
 
 ```bash
-ros2 topic hz /scan
-ros2 topic hz /odom
-ros2 run tf2_ros tf2_echo odom base_link
-ros2 run tf2_ros tf2_echo base_link laser_link
+ros2 launch slam_robot_ros2 synthetic_smoke.launch.py
 ```
 
-## Diagnostics node
+This publishes deterministic fake `/scan`, `/odom` and `odom -> base_footprint` so the package graph/diagnostics can be exercised without hardware.
 
-The included diagnostics node monitors input rates:
+**It is not a physics simulation and must not be used as SLAM-performance evidence.**
+
+## Offline engineering checks
 
 ```bash
-ros2 run slam_robot_ros2 diagnostics
+python -m pip install -r requirements-dev.txt
+pytest -q
+python tools/config_lint.py
+python tools/urdf_lint.py
+python tools/map_metrics.py examples/sample_map.pgm
+python tools/odom_metrics.py examples/sample_odom.csv
+python tools/generate_report.py
+python tools/release_gate.py reference
 ```
 
-It is not a replacement for full robot diagnostics; it simply helps confirm that `/scan` and `/odom` are alive.
+## Evidence-based maturity
 
-## Save a map
+The source of truth is [`config/robot.yaml`](config/robot.yaml).
 
-Once mapping is good, use the map-saving tools available in your ROS 2/Nav2 installation, or `slam_toolbox` serialization services when you need the pose graph for continued mapping/localization.
+| Gate | Current |
+|---|---|
+| Static engineering reference | ✅ |
+| ROS build ready | ❌ until ROS CI/build evidence |
+| Launch smoke validated | ❌ |
+| Simulation SLAM validated | ❌ |
+| Hardware TF validated | ❌ |
+| Hardware mapping validated | ❌ |
+| Loop closure validated | ❌ |
+| Localization validated | ❌ |
 
-## Repository layout
+The gates are deliberately conservative. A green README checkbox is not evidence.
 
-```text
-.
-├── slam_robot_ros2/diagnostics.py
-├── launch/
-│   ├── mapping.launch.py
-│   └── robot_state.launch.py
-├── config/slam_toolbox.yaml
-├── urdf/robot.urdf.xacro
-├── docs/
-│   ├── TF_TREE.md
-│   ├── HARDWARE_BRINGUP.md
-│   └── MAPPING_WORKFLOW.md
-├── package.xml
-├── setup.py
-└── setup.cfg
+## Calibration warning
+
+The URDF dimensions are **reference placeholders**, not measured geometry. Before using a real robot:
+
+- measure wheel radius;
+- measure wheel separation;
+- measure LiDAR XYZ/RPY pose;
+- calibrate odometry scale/heading;
+- verify scan timestamps/ranges/frame;
+- record a short rosbag and inspect TF.
+
+See [`docs/HARDWARE_BRINGUP.md`](docs/HARDWARE_BRINGUP.md).
+
+## Reproducible SLAM tuning
+
+Do not tune from memory. Record a bag:
+
+```bash
+ros2 bag record /scan /odom /tf /tf_static /diagnostics
 ```
 
-## Hardware assumptions
+Replay the same dataset for competing parameter sets and preserve map/metric artifacts. See [`docs/ROSBAG_BENCHMARK.md`](docs/ROSBAG_BENCHMARK.md) and [`docs/TUNING.md`](docs/TUNING.md).
 
-The included URDF dimensions are placeholders for visualization/frame structure. Measure your chassis, wheel separation/radius, and LiDAR pose and update the robot model and base driver accordingly.
+## Documentation
+
+- [Architecture](docs/ARCHITECTURE.md)
+- [TF contract](docs/TF_CONTRACT.md)
+- [Sensor/odometry contract](docs/SENSOR_ODOMETRY_CONTRACT.md)
+- [Hardware bring-up](docs/HARDWARE_BRINGUP.md)
+- [Mapping workflow](docs/MAPPING_WORKFLOW.md)
+- [Localization workflow](docs/LOCALIZATION_WORKFLOW.md)
+- [SLAM tuning](docs/TUNING.md)
+- [Rosbag benchmark](docs/ROSBAG_BENCHMARK.md)
+- [Validation plan](docs/VALIDATION_PLAN.md)
+- [Failure modes](docs/FAILURE_MODES.md)
+- [Performance benchmark](docs/PERFORMANCE_BENCHMARK.md)
+- [Engineering requirements](docs/REQUIREMENTS.md)
 
 ## License
 

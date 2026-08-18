@@ -1,19 +1,47 @@
 # Mapping Workflow
 
-1. Start the LiDAR driver.
-2. Start the base controller/odometry publisher.
-3. Verify `/scan`, `/odom`, and TF.
-4. Launch `mapping.launch.py`.
-5. Drive slowly with smooth turns and overlap previously seen areas.
-6. Watch for scan tearing or TF jumps; fix sensor/odometry issues before tuning SLAM parameters.
-7. Close loops by revisiting recognizable areas.
-8. Save the occupancy map and, if needed, serialize the pose graph for later localization/continued mapping.
+## 1. Hardware preflight
 
-## Tune in this order
+Verify power, wheel direction, encoder polarity, LiDAR orientation and emergency stop behavior.
 
-1. Sensor timestamp/frame correctness
-2. Wheel odometry calibration
-3. LiDAR pose in URDF
-4. SLAM movement thresholds and scan settings
+## 2. Graph preflight
 
-Trying to compensate for bad odometry or TF by changing SLAM parameters usually produces a fragile map.
+```bash
+ros2 topic hz /scan
+ros2 topic hz /odom
+ros2 run tf2_ros tf2_echo odom base_footprint
+ros2 run tf2_ros tf2_echo base_link laser_link
+ros2 run slam_robot_ros2 diagnostics
+ros2 run slam_robot_ros2 tf_monitor
+```
+
+## 3. Start mapping
+
+```bash
+ros2 launch slam_robot_ros2 bringup.launch.py mode:=mapping
+```
+
+## 4. Drive for observability
+
+Use smooth motion. Avoid only rotating in one spot or driving long textureless corridors at high speed. Revisit previously mapped areas from useful angles to create loop-closure opportunities.
+
+## 5. Inspect failure signals
+
+Watch `/diagnostics`, SLAM console messages, scan alignment in RViz, and TF continuity. Fix upstream sensor/odometry problems before adjusting loop-closure thresholds.
+
+## 6. Save evidence
+
+Record the rosbag and note:
+
+- robot geometry revision
+- SLAM config git commit
+- battery state
+- LiDAR model/rate
+- wheel/encoder calibration
+- test environment
+- map screenshots and map files
+- observed loop closures
+
+## 7. Promote maturity only with evidence
+
+Set validation flags only after the corresponding evidence exists. `tools/release_gate.py` intentionally blocks unsupported maturity claims.

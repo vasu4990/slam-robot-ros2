@@ -1,0 +1,22 @@
+name: SLAM / integration bug
+description: Report a reproducible ROS, TF, mapping or localization problem.
+title: "[bug] "
+body:
+  - type: input
+    id: distro
+    attributes: {label: ROS 2 distribution}
+    validations: {required: true}
+  - type: input
+    id: commit
+    attributes: {label: Repository commit}
+    validations: {required: true}
+  - type: textarea
+    id: symptom
+    attributes: {label: Symptom and expected behavior}
+    validations: {required: true}
+  - type: textarea
+    id: graph
+    attributes: {label: Topic rates, frame IDs and TF observations}
+  - type: textarea
+    id: reproduction
+    attributes: {label: Reproduction commands / rosbag identifier}
