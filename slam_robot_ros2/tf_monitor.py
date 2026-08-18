@@ -23,17 +23,23 @@ class TfHealthMonitor(Node):
         )
         self.create_timer(float(self.get_parameter("report_period_sec").value), self.report)
 
-    def _check(self, parent: str, child: str) -> DiagnosticStatus:
+    def _check(self, parent: str, child: str, require_fresh: bool) -> DiagnosticStatus:
         try:
             tf = self.buffer.lookup_transform(
                 parent, child, Time(), timeout=Duration(seconds=0.15)
             )
-            stamp = rclpy.time.Time.from_msg(tf.header.stamp)
-            age = max(0.0, (self.get_clock().now() - stamp).nanoseconds / 1e9)
-            limit = float(self.get_parameter("tf_stale_sec").value)
-            level = DiagnosticStatus.OK if age <= limit else DiagnosticStatus.WARN
-            message = "transform available" if level == DiagnosticStatus.OK else "transform stale"
-            values = [KeyValue(key="age_sec", value=f"{age:.3f}")]
+            values = []
+            if require_fresh:
+                stamp = rclpy.time.Time.from_msg(tf.header.stamp)
+                age = max(0.0, (self.get_clock().now() - stamp).nanoseconds / 1e9)
+                limit = float(self.get_parameter("tf_stale_sec").value)
+                level = DiagnosticStatus.OK if age <= limit else DiagnosticStatus.WARN
+                message = "transform available" if level == DiagnosticStatus.OK else "transform stale"
+                values.append(KeyValue(key="age_sec", value=f"{age:.3f}"))
+            else:
+                level = DiagnosticStatus.OK
+                message = "static transform available"
+                values.append(KeyValue(key="freshness_check", value="not_applicable_static_tf"))
         except TransformException as exc:
             level, message = DiagnosticStatus.ERROR, "transform unavailable"
             values = [KeyValue(key="error", value=str(exc))]
@@ -48,7 +54,10 @@ class TfHealthMonitor(Node):
         laser = str(self.get_parameter("laser_frame").value)
         msg = DiagnosticArray()
         msg.header.stamp = self.get_clock().now().to_msg()
-        msg.status = [self._check(odom, base), self._check(base, laser)]
+        msg.status = [
+            self._check(odom, base, require_fresh=True),
+            self._check(base, laser, require_fresh=False),
+        ]
         self.pub.publish(msg)
 
 def main(args=None) -> None:
