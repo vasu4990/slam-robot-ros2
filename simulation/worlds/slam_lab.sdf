@@ -1,0 +1,24 @@
+<?xml version="1.0"?>
+<sdf version="1.10">
+  <world name="slam_lab">
+    <physics name="benchmark_physics" type="ignored"><max_step_size>0.001</max_step_size><real_time_factor>1.0</real_time_factor></physics>
+    <plugin filename="gz-sim-physics-system" name="gz::sim::systems::Physics"/>
+    <plugin filename="gz-sim-user-commands-system" name="gz::sim::systems::UserCommands"/>
+    <plugin filename="gz-sim-scene-broadcaster-system" name="gz::sim::systems::SceneBroadcaster"/>
+    <plugin filename="gz-sim-sensors-system" name="gz::sim::systems::Sensors"><render_engine>ogre2</render_engine></plugin>
+    <light type="directional" name="sun"><pose>0 0 10 0 0 0</pose><diffuse>0.9 0.9 0.9 1</diffuse><specular>0.2 0.2 0.2 1</specular><direction>-0.4 0.2 -0.9</direction></light>
+    <model name="ground"><static>true</static><link name="link"><collision name="c"><geometry><box><size>12 12 0.1</size></box></geometry></collision><visual name="v"><geometry><box><size>12 12 0.1</size></box></geometry></visual></link></model>
+    <model name="walls"><static>true</static><link name="walls">
+      <collision name="north"><pose>0 4 0.6 0 0 0</pose><geometry><box><size>8.4 0.12 1.2</size></box></geometry></collision>
+      <collision name="south"><pose>0 -4 0.6 0 0 0</pose><geometry><box><size>8.4 0.12 1.2</size></box></geometry></collision>
+      <collision name="east"><pose>4 0 0.6 0 0 0</pose><geometry><box><size>0.12 8.4 1.2</size></box></geometry></collision>
+      <collision name="west"><pose>-4 0 0.6 0 0 0</pose><geometry><box><size>0.12 8.4 1.2</size></box></geometry></collision>
+      <collision name="inner_a"><pose>0.7 1.1 0.6 0 0 0</pose><geometry><box><size>3.2 0.18 1.2</size></box></geometry></collision>
+      <collision name="inner_b"><pose>-1.3 -1.0 0.6 0 0 0</pose><geometry><box><size>0.18 3.0 1.2</size></box></geometry></collision>
+      <collision name="inner_c"><pose>1.8 -1.7 0.6 0 0 0</pose><geometry><box><size>2.2 0.18 1.2</size></box></geometry></collision>
+      <collision name="pillar"><pose>2.6 2.35 0.6 0 0 0</pose><geometry><cylinder><radius>0.32</radius><length>1.2</length></cylinder></geometry></collision>
+      <visual name="north_v"><pose>0 4 0.6 0 0 0</pose><geometry><box><size>8.4 0.12 1.2</size></box></geometry></visual><visual name="south_v"><pose>0 -4 0.6 0 0 0</pose><geometry><box><size>8.4 0.12 1.2</size></box></geometry></visual><visual name="east_v"><pose>4 0 0.6 0 0 0</pose><geometry><box><size>0.12 8.4 1.2</size></box></geometry></visual><visual name="west_v"><pose>-4 0 0.6 0 0 0</pose><geometry><box><size>0.12 8.4 1.2</size></box></geometry></visual><visual name="inner_a_v"><pose>0.7 1.1 0.6 0 0 0</pose><geometry><box><size>3.2 0.18 1.2</size></box></geometry></visual><visual name="inner_b_v"><pose>-1.3 -1.0 0.6 0 0 0</pose><geometry><box><size>0.18 3.0 1.2</size></box></geometry></visual><visual name="inner_c_v"><pose>1.8 -1.7 0.6 0 0 0</pose><geometry><box><size>2.2 0.18 1.2</size></box></geometry></visual><visual name="pillar_v"><pose>2.6 2.35 0.6 0 0 0</pose><geometry><cylinder><radius>0.32</radius><length>1.2</length></cylinder></geometry></visual>
+    </link></model>
+    <include><uri>model://slam_robot</uri><pose>-2.8 -2.8 0 0 0 0</pose></include>
+  </world>
+</sdf>
