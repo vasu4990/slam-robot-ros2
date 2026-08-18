@@ -23,19 +23,37 @@ jobs:
           for p in Path('benchmarks').glob('*.yaml'):
               yaml.safe_load(p.read_text()); print('parsed',p)
           PY
+      - name: Shell syntax
+        run: bash -n scripts/*.sh
       - run: pytest -q
       - run: python tools/config_lint.py
       - run: python tools/urdf_lint.py
       - run: python tools/simulation_lint.py
+      - name: Hardware evidence template contract
+        run: |
+          python tools/hardware_profile_lint.py
+          python tools/evidence_manifest.py evidence/manifest.example.yaml
+      - name: Prove measured hardware remains blocked
+        shell: bash
+        run: |
+          if python tools/hardware_profile_lint.py --require-measured; then
+            echo 'ERROR: unmeasured hardware template passed measured validation'
+            exit 1
+          fi
+          if python tools/release_gate.py hardware-data-ready; then
+            echo 'ERROR: hardware-data-ready passed without physical evidence'
+            exit 1
+          fi
+          echo 'Expected: physical hardware gates remain blocked.'
       - run: python tools/map_metrics.py examples/sample_map.pgm --output artifacts/map-metrics.json
       - run: python tools/odom_metrics.py examples/sample_odom.csv --output artifacts/odom-metrics.json
       - run: python tools/generate_report.py --output artifacts/engineering-report.md
       - run: python tools/release_gate.py reference
-      - name: Prove hardware gate remains blocked
+      - name: Prove hardware mapping gate remains blocked
         shell: bash
         run: |
           if python tools/release_gate.py hardware-mapping-validated; then exit 1; fi
-          echo 'Expected: hardware validation remains evidence-gated.'
+          echo 'Expected: hardware mapping remains evidence-gated.'
       - uses: actions/upload-artifact@v4
         with: {name: slam-engineering-artifacts, path: artifacts/, if-no-files-found: error}
   ros-lyrical-build:

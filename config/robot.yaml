@@ -29,10 +29,17 @@ validation:
   loop_closure_benchmark_passed: false
   resource_profile_passed: false
   rosbag_replay_passed: false
+  hardware_profile_measured: false
+  hardware_preflight_passed: false
+  hardware_rosbag_captured: false
+  hardware_evidence_manifested: false
+  wheel_calibration_passed: false
+  lidar_extrinsics_verified: false
   hardware_tf_passed: false
   hardware_mapping_passed: false
   loop_closure_validated: false
   localization_validated: false
+  hardware_repeatability_passed: false
 notes:
   - Gazebo results are simulation evidence only.
   - Geometry remains a reference model until measured on the physical robot.

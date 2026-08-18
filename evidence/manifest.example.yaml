@@ -1,0 +1,18 @@
+hardware_run:
+  run_id: example_replace_me
+  date: 2026-08-18
+  robot_id: replace_me
+  operator: replace_me
+  environment: replace_me
+  simulation: false
+  hardware_profile: hardware_profile.yaml
+  rosbag: bag/
+  preflight: preflight/preflight.json
+  tf_audit: preflight/tf_odom_base.txt
+  mapping:
+    map_pgm: map.pgm
+    map_yaml: map.yaml
+    loop_closure_observed: null
+    localization_repeated: null
+  notes: "Example only; not hardware evidence."
+  files: []

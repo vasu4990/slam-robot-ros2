@@ -1,0 +1,33 @@
+name: Physical hardware validation
+about: Record a LiDAR/encoder mapping or localization evidence run
+title: "[hardware] "
+labels: [hardware, validation]
+body:
+  - type: markdown
+    attributes:
+      value: "Use only for physical-robot evidence. Simulation results belong in simulation/benchmark issues."
+  - type: input
+    id: robot
+    attributes: {label: Robot ID}
+    validations: {required: true}
+  - type: input
+    id: environment
+    attributes: {label: Environment / route}
+    validations: {required: true}
+  - type: textarea
+    id: profile
+    attributes: {label: Hardware profile, description: "LiDAR model/firmware, encoder CPR, calibrated wheel radius/separation, measured LiDAR transform"}
+    validations: {required: true}
+  - type: textarea
+    id: evidence
+    attributes: {label: Evidence bundle, description: "Manifest, rosbag location/hash, preflight JSON, TF audit, map/pose graph and metrics"}
+    validations: {required: true}
+  - type: checkboxes
+    id: truth
+    attributes:
+      label: Evidence truth
+      options:
+        - label: "This run used the physical robot, not Gazebo or rosbag replay."
+          required: true
+        - label: "Failures and anomalies are preserved in the evidence notes."
+          required: true

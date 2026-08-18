@@ -1,0 +1,66 @@
+hardware_profile:
+  status: template-unmeasured
+  robot_id: null
+  measurement_date: null
+  operator: null
+  environment: null
+
+  lidar:
+    model: null
+    firmware: null
+    serial: null
+    frame: laser_link
+    scan_topic: /scan
+    timestamp_source: null
+    measured_rate_hz: null
+    range_min_m: null
+    range_max_m: null
+    pose_measured: false
+    xyz_m: [null, null, null]
+    rpy_rad: [null, null, null]
+
+  encoders:
+    type: quadrature
+    counts_per_revolution: null
+    gear_ratio: null
+    left_sign: null
+    right_sign: null
+    timestamp_source: null
+
+  drivetrain:
+    wheel_radius_m:
+      nominal: 0.033
+      calibrated: null
+      measured: false
+    wheel_separation_m:
+      nominal: 0.26
+      calibrated: null
+      measured: false
+
+  odometry:
+    topic: /odom
+    parent_frame: odom
+    child_frame: base_footprint
+    measured_rate_hz: null
+    covariance_configured: false
+
+  calibration:
+    straight_line_runs: 0
+    rotation_runs: 0
+    wheel_radius_calibrated: false
+    wheel_separation_calibrated: false
+    lidar_extrinsics_verified: false
+
+  evidence:
+    preflight_json: null
+    calibration_json: null
+    tf_audit_txt: null
+    rosbag_directory: null
+    map_pgm: null
+    map_yaml: null
+    run_manifest: null
+
+notes:
+  - Replace null values only with measured or device-reported values.
+  - Do not copy Gazebo dimensions into calibrated hardware fields.
+  - Raw rosbag data should normally stay out of git; commit compact metadata and metric summaries instead.

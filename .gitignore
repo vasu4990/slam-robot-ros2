@@ -1,12 +1,12 @@
 build/
 install/
 log/
-artifacts/
 __pycache__/
-.pytest_cache/
 *.py[cod]
-*.db3
-*.mcap
 .vscode/
 .DS_Store
 Thumbs.db
+artifacts/
+*.db3
+*.mcap
+evidence/runs/*/bag/

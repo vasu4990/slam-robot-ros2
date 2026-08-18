@@ -9,7 +9,11 @@ maturity:
     required: [ros_build_passed, gazebo_runtime_passed, ground_truth_bridge_passed, simulation_slam_passed, trajectory_scoring_passed, loop_closure_benchmark_passed]
   benchmark-validated:
     required: [simulation_slam_passed, trajectory_scoring_passed, loop_closure_benchmark_passed, resource_profile_passed, rosbag_replay_passed]
+  hardware-data-ready:
+    required: [static_contracts_passed, ros_build_passed, hardware_profile_measured, hardware_preflight_passed, hardware_rosbag_captured, hardware_evidence_manifested]
+  hardware-calibrated:
+    required: [static_contracts_passed, ros_build_passed, hardware_profile_measured, hardware_preflight_passed, hardware_rosbag_captured, hardware_evidence_manifested, wheel_calibration_passed, lidar_extrinsics_verified]
   hardware-mapping-validated:
-    required: [static_contracts_passed, ros_build_passed, hardware_tf_passed, hardware_mapping_passed, loop_closure_validated]
+    required: [static_contracts_passed, ros_build_passed, hardware_profile_measured, hardware_preflight_passed, hardware_rosbag_captured, hardware_evidence_manifested, wheel_calibration_passed, lidar_extrinsics_verified, hardware_tf_passed, hardware_mapping_passed, loop_closure_validated, hardware_repeatability_passed]
   hardware-localization-validated:
-    required: [static_contracts_passed, ros_build_passed, hardware_tf_passed, localization_validated]
+    required: [static_contracts_passed, ros_build_passed, hardware_profile_measured, hardware_preflight_passed, hardware_rosbag_captured, hardware_evidence_manifested, wheel_calibration_passed, lidar_extrinsics_verified, hardware_tf_passed, localization_validated, hardware_repeatability_passed]
