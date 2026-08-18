@@ -1,8 +1,8 @@
 """Pure-Python contract helpers shared by tests and offline tooling."""
 from __future__ import annotations
 
-REQUIRED_FRAMES = ("map", "odom", "base_footprint", "base_link", "laser")
-REQUIRED_TOPICS = ("scan", "odom", "map", "cmd_vel", "diagnostics")
+REQUIRED_FRAMES = ("map", "odom", "base_footprint", "base_link", "laser", "ground_truth")
+REQUIRED_TOPICS = ("scan", "odom", "ground_truth_odom", "map", "cmd_vel", "diagnostics")
 
 def validate_robot_contract(data: dict) -> list[str]:
     errors: list[str] = []
@@ -18,7 +18,7 @@ def validate_robot_contract(data: dict) -> list[str]:
         value = topics.get(key)
         if not isinstance(value, str) or not value.startswith("/"):
             errors.append(f"topic {key} must be an absolute ROS name")
-    for key in ("scan_min", "odom_min", "map_min"):
+    for key in ("scan_min", "odom_min", "map_min", "ground_truth_min"):
         if float(rates.get(key, 0.0)) <= 0:
             errors.append(f"expected rate {key} must be positive")
     for key in ("chassis_length_m", "chassis_width_m", "chassis_height_m",
@@ -31,4 +31,6 @@ def validate_robot_contract(data: dict) -> list[str]:
         errors.append("lidar max_range_m must exceed min_range_m")
     if frames.get("map") == frames.get("odom"):
         errors.append("map and odom frames must be distinct")
+    if frames.get("ground_truth") in {frames.get("map"), frames.get("odom")}:
+        errors.append("ground_truth frame must remain independent from SLAM map/odom frames")
     return errors
