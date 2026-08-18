@@ -1,37 +1,13 @@
 project:
   name: slam_robot_ros2
   reference_ros_distro: lyrical
+  reference_gazebo: jetty
   status: engineering-reference-unvalidated
-
-frames:
-  map: map
-  odom: odom
-  base_footprint: base_footprint
-  base_link: base_link
-  laser: laser_link
-
-topics:
-  scan: /scan
-  odom: /odom
-  map: /map
-  cmd_vel: /cmd_vel
-  diagnostics: /diagnostics
-
-expected_rates_hz:
-  scan_min: 5.0
-  odom_min: 15.0
-  map_min: 0.05
-
-stale_after_sec:
-  scan: 1.0
-  odom: 0.5
-  map: 8.0
-
-lidar:
-  min_range_m: 0.10
-  max_range_m: 12.0
-  expected_fov_deg: 360.0
-
+frames: {map: map, odom: odom, base_footprint: base_footprint, base_link: base_link, laser: laser_link, ground_truth: world}
+topics: {scan: /scan, odom: /odom, ground_truth_odom: /ground_truth/odom, map: /map, cmd_vel: /cmd_vel, diagnostics: /diagnostics}
+expected_rates_hz: {scan_min: 5.0, odom_min: 15.0, map_min: 0.05, ground_truth_min: 20.0}
+stale_after_sec: {scan: 1.0, odom: 0.5, map: 8.0, ground_truth: 0.5}
+lidar: {min_range_m: 0.10, max_range_m: 12.0, expected_fov_deg: 360.0}
 robot_geometry:
   measured: false
   chassis_length_m: 0.30
@@ -41,18 +17,23 @@ robot_geometry:
   wheel_separation_m: 0.26
   wheel_width_m: 0.025
   laser_xyz_m: [0.08, 0.0, 0.12]
-
 validation:
   static_contracts_passed: true
   ros_build_passed: false
   launch_smoke_passed: false
+  gazebo_world_contract_passed: true
+  gazebo_runtime_passed: false
+  ground_truth_bridge_passed: false
   simulation_slam_passed: false
+  trajectory_scoring_passed: false
+  loop_closure_benchmark_passed: false
+  resource_profile_passed: false
   rosbag_replay_passed: false
   hardware_tf_passed: false
   hardware_mapping_passed: false
   loop_closure_validated: false
   localization_validated: false
-
 notes:
-  - Geometry is a reference model until measured on the physical robot.
-  - Hardware-specific LiDAR and base drivers are intentionally outside this repository.
+  - Gazebo results are simulation evidence only.
+  - Geometry remains a reference model until measured on the physical robot.
+  - Hardware-specific LiDAR and encoder drivers remain outside this repository.
