@@ -3,15 +3,42 @@ on:
   workflow_dispatch:
 permissions: {contents: read}
 jobs:
-  headless-gazebo-smoke:
+  headless-gazebo-benchmark:
     runs-on: ubuntu-latest
+    timeout-minutes: 15
+    env:
+      QT_QPA_PLATFORM: offscreen
     steps:
       - uses: actions/checkout@v4
-      - name: Explain evidence scope
+      - uses: ros-tooling/setup-ros@v0.7
+        with:
+          required-ros-distributions: lyrical
+      - name: Install ROS and Python dependencies
         run: |
-          echo 'This workflow is intentionally manual until Lyrical+Jetty headless runtime is proven stable on the GitHub runner.'
-          echo 'A future green run may set gazebo runtime evidence, but must never set hardware validation flags.'
+          rosdep install --from-paths . --ignore-src -r -y --rosdistro lyrical
+          python -m pip install -r requirements-dev.txt
+      - name: Build package
+        shell: bash
+        run: |
+          source /opt/ros/lyrical/setup.bash
+          colcon build --symlink-install --event-handlers console_direct+
       - name: Static simulation contract
+        run: python tools/simulation_lint.py
+      - name: Run headless physics SLAM benchmark
+        shell: bash
         run: |
-          python -m pip install PyYAML
-          python tools/simulation_lint.py
+          source /opt/ros/lyrical/setup.bash
+          source install/setup.bash
+          bash scripts/run_gazebo_benchmark.sh
+      - name: Upload benchmark evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: gazebo-slam-benchmark-evidence
+          path: artifacts/
+          if-no-files-found: warn
+      - name: Evidence scope
+        if: always()
+        run: |
+          echo 'This workflow produces simulation evidence only.'
+          echo 'A green run must never set hardware validation flags.'
