@@ -1,72 +1,47 @@
 name: Engineering CI
-
-on:
-  push:
-  pull_request:
-
-permissions:
-  contents: read
-
+on: [push, pull_request]
+permissions: {contents: read}
 jobs:
   static-contracts:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
-        with:
-          python-version: '3.12'
-          cache: pip
+        with: {python-version: '3.12', cache: pip}
       - run: python -m pip install --upgrade pip && python -m pip install -r requirements-dev.txt
       - name: Compile Python
         run: python -m compileall -q setup.py launch slam_robot_ros2 tools
-      - name: Parse XML and all YAML
+      - name: Parse XML and YAML
         run: |
           python - <<'PY'
           from pathlib import Path
-          import xml.etree.ElementTree as ET
-          import yaml
-          ET.parse('package.xml')
-          ET.parse('urdf/robot.urdf.xacro')
-          for path in Path('config').glob('*.yaml'):
-              yaml.safe_load(path.read_text())
-              print('parsed', path)
+          import xml.etree.ElementTree as ET, yaml
+          for p in ['package.xml','urdf/robot.urdf.xacro','simulation/worlds/slam_lab.sdf','simulation/models/slam_robot/model.sdf','simulation/models/slam_robot/model.config']:
+              ET.parse(p); print('parsed',p)
+          for p in Path('config').glob('*.yaml'):
+              yaml.safe_load(p.read_text()); print('parsed',p)
+          for p in Path('benchmarks').glob('*.yaml'):
+              yaml.safe_load(p.read_text()); print('parsed',p)
           PY
-      - name: Unit tests
-        run: pytest -q
-      - name: Configuration contract
-        run: python tools/config_lint.py
-      - name: URDF contract
-        run: python tools/urdf_lint.py
-      - name: Map metrics smoke
-        run: python tools/map_metrics.py examples/sample_map.pgm --output artifacts/map-metrics.json
-      - name: Odometry metrics smoke
-        run: python tools/odom_metrics.py examples/sample_odom.csv --output artifacts/odom-metrics.json
-      - name: Generate engineering report
-        run: python tools/generate_report.py --output artifacts/engineering-report.md
-      - name: Reference maturity gate
-        run: python tools/release_gate.py reference
-      - name: Prove hardware gate remains evidence-based
+      - run: pytest -q
+      - run: python tools/config_lint.py
+      - run: python tools/urdf_lint.py
+      - run: python tools/simulation_lint.py
+      - run: python tools/map_metrics.py examples/sample_map.pgm --output artifacts/map-metrics.json
+      - run: python tools/odom_metrics.py examples/sample_odom.csv --output artifacts/odom-metrics.json
+      - run: python tools/generate_report.py --output artifacts/engineering-report.md
+      - run: python tools/release_gate.py reference
+      - name: Prove hardware gate remains blocked
         shell: bash
         run: |
-          if python tools/release_gate.py hardware-mapping-validated; then
-            echo "ERROR: hardware gate passed without measured evidence"
-            exit 1
-          fi
-          echo "Expected: hardware validation remains blocked."
+          if python tools/release_gate.py hardware-mapping-validated; then exit 1; fi
+          echo 'Expected: hardware validation remains evidence-gated.'
       - uses: actions/upload-artifact@v4
-        with:
-          name: slam-engineering-artifacts
-          path: artifacts/
-          if-no-files-found: error
-
+        with: {name: slam-engineering-artifacts, path: artifacts/, if-no-files-found: error}
   ros-lyrical-build:
     runs-on: ubuntu-latest
     steps:
       - uses: ros-tooling/setup-ros@v0.7
-        with:
-          required-ros-distributions: lyrical
+        with: {required-ros-distributions: lyrical}
       - uses: ros-tooling/action-ros-ci@v0.4
-        with:
-          package-name: slam_robot_ros2
-          target-ros2-distro: lyrical
-          coverage-result: false
+        with: {package-name: slam_robot_ros2, target-ros2-distro: lyrical, coverage-result: false}
