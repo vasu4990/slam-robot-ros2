@@ -12,11 +12,9 @@ def evaluate(stage: str, root: Path = ROOT) -> tuple[bool, list[str]]:
     return not missing, missing
 
 def main():
+    maturity = yaml.safe_load((ROOT / "config/validation.yaml").read_text())["maturity"]
     p = argparse.ArgumentParser()
-    p.add_argument("stage", choices=[
-        "reference", "ros-build-ready", "simulation-validated",
-        "hardware-mapping-validated", "hardware-localization-validated"
-    ])
+    p.add_argument("stage", choices=list(maturity))
     args = p.parse_args()
     ok, missing = evaluate(args.stage)
     print(f"stage={args.stage} passed={str(ok).lower()}")
