@@ -1,0 +1,37 @@
+<?xml version="1.0"?>
+<robot xmlns:xacro="http://www.ros.org/wiki/xacro" name="slam_robot">
+  <!-- Placeholder dimensions: measure the real chassis before using geometry-dependent features. -->
+  <link name="base_link">
+    <visual>
+      <geometry><box size="0.30 0.24 0.08"/></geometry>
+      <origin xyz="0 0 0.04"/>
+    </visual>
+    <collision>
+      <geometry><box size="0.30 0.24 0.08"/></geometry>
+      <origin xyz="0 0 0.04"/>
+    </collision>
+  </link>
+
+  <link name="laser_link">
+    <visual><geometry><cylinder radius="0.04" length="0.04"/></geometry></visual>
+  </link>
+  <joint name="laser_joint" type="fixed">
+    <parent link="base_link"/>
+    <child link="laser_link"/>
+    <origin xyz="0.08 0 0.12" rpy="0 0 0"/>
+  </joint>
+
+  <link name="left_wheel_link"/>
+  <joint name="left_wheel_joint" type="continuous">
+    <parent link="base_link"/><child link="left_wheel_link"/>
+    <origin xyz="0 0.13 0" rpy="1.5708 0 0"/>
+    <axis xyz="0 0 1"/>
+  </joint>
+
+  <link name="right_wheel_link"/>
+  <joint name="right_wheel_joint" type="continuous">
+    <parent link="base_link"/><child link="right_wheel_link"/>
+    <origin xyz="0 -0.13 0" rpy="1.5708 0 0"/>
+    <axis xyz="0 0 1"/>
+  </joint>
+</robot>

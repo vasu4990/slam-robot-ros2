@@ -1,0 +1,21 @@
+name: Static Checks
+
+on:
+  push:
+  pull_request:
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - run: pip install -r requirements-dev.txt
+      - name: Compile Python
+        run: python -m py_compile setup.py launch/*.launch.py slam_robot_ros2/*.py
+      - name: Validate package XML and URDF XML
+        run: python -c "import xml.etree.ElementTree as ET; ET.parse('package.xml'); ET.parse('urdf/robot.urdf.xacro')"
+      - name: Validate YAML
+        run: python -c "import yaml; yaml.safe_load(open('config/slam_toolbox.yaml', encoding='utf-8'))"

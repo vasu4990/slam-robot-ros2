@@ -1,6 +1,5 @@
 from launch import LaunchDescription
 from launch.actions import DeclareLaunchArgument
-from launch.conditions import IfCondition
 from launch.substitutions import Command, LaunchConfiguration
 from launch_ros.actions import Node
 from launch_ros.parameter_descriptions import ParameterValue
@@ -10,37 +9,16 @@ import os
 
 def generate_launch_description():
     pkg = get_package_share_directory("slam_robot_ros2")
-    params_file = os.path.join(pkg, "config", "slam_toolbox.yaml")
     xacro_file = os.path.join(pkg, "urdf", "robot.urdf.xacro")
-
     use_sim_time = LaunchConfiguration("use_sim_time")
-    scan_topic = LaunchConfiguration("scan_topic")
-    rviz = LaunchConfiguration("rviz")
     robot_description = ParameterValue(Command(["xacro ", xacro_file]), value_type=str)
 
     return LaunchDescription([
         DeclareLaunchArgument("use_sim_time", default_value="false"),
-        DeclareLaunchArgument("scan_topic", default_value="/scan"),
-        DeclareLaunchArgument("rviz", default_value="true"),
         Node(
             package="robot_state_publisher",
             executable="robot_state_publisher",
             output="screen",
             parameters=[{"use_sim_time": use_sim_time, "robot_description": robot_description}],
-        ),
-        Node(
-            package="slam_toolbox",
-            executable="async_slam_toolbox_node",
-            name="slam_toolbox",
-            output="screen",
-            parameters=[params_file, {"use_sim_time": use_sim_time}],
-            remappings=[("scan", scan_topic)],
-        ),
-        Node(
-            package="rviz2",
-            executable="rviz2",
-            name="rviz2",
-            output="screen",
-            condition=IfCondition(rviz),
         ),
     ])
