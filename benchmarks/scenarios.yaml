@@ -1,0 +1,11 @@
+scenarios:
+  - id: gazebo_loop_square
+    world: simulation/worlds/slam_lab.sdf
+    command_profile: config/benchmark_path.yaml
+    required_topics: [/scan, /odom, /ground_truth/odom, /tf, /tf_static, /map, /diagnostics]
+    artifacts: [rosbag, trajectory.csv, map.pgm, map.yaml, trajectory_metrics.json, loop_metrics.json, resource_profile.json]
+    validation_status: pending_real_run
+  - id: hardware_loop_square
+    required_topics: [/scan, /odom, /tf, /tf_static, /map, /diagnostics]
+    artifacts: [rosbag, map.pgm, map.yaml, hardware_notes.md]
+    validation_status: pending_physical_robot
