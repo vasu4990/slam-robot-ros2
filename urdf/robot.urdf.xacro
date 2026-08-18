@@ -1,37 +1,65 @@
 <?xml version="1.0"?>
 <robot xmlns:xacro="http://www.ros.org/wiki/xacro" name="slam_robot">
-  <!-- Placeholder dimensions: measure the real chassis before using geometry-dependent features. -->
+  <xacro:arg name="chassis_length" default="0.30"/>
+  <xacro:arg name="chassis_width" default="0.24"/>
+  <xacro:arg name="chassis_height" default="0.08"/>
+  <xacro:arg name="wheel_radius" default="0.033"/>
+  <xacro:arg name="wheel_width" default="0.025"/>
+  <xacro:arg name="wheel_separation" default="0.26"/>
+  <xacro:arg name="laser_x" default="0.08"/>
+  <xacro:arg name="laser_y" default="0.0"/>
+  <xacro:arg name="laser_z" default="0.12"/>
+
+  <!-- Reference geometry only until measured on the physical robot. -->
+  <link name="base_footprint"/>
   <link name="base_link">
     <visual>
-      <geometry><box size="0.30 0.24 0.08"/></geometry>
-      <origin xyz="0 0 0.04"/>
+      <origin xyz="0 0 ${$(arg chassis_height)/2}" rpy="0 0 0"/>
+      <geometry><box size="$(arg chassis_length) $(arg chassis_width) $(arg chassis_height)"/></geometry>
     </visual>
     <collision>
-      <geometry><box size="0.30 0.24 0.08"/></geometry>
-      <origin xyz="0 0 0.04"/>
+      <origin xyz="0 0 ${$(arg chassis_height)/2}" rpy="0 0 0"/>
+      <geometry><box size="$(arg chassis_length) $(arg chassis_width) $(arg chassis_height)"/></geometry>
     </collision>
+    <inertial>
+      <origin xyz="0 0 ${$(arg chassis_height)/2}" rpy="0 0 0"/>
+      <mass value="2.0"/>
+      <inertia ixx="0.010" ixy="0" ixz="0" iyy="0.015" iyz="0" izz="0.020"/>
+    </inertial>
   </link>
+  <joint name="base_footprint_joint" type="fixed">
+    <parent link="base_footprint"/>
+    <child link="base_link"/>
+  </joint>
+
+  <xacro:macro name="wheel" params="name side">
+    <link name="${name}_wheel_link">
+      <visual>
+        <origin rpy="1.57079632679 0 0"/>
+        <geometry><cylinder radius="$(arg wheel_radius)" length="$(arg wheel_width)"/></geometry>
+      </visual>
+      <collision>
+        <origin rpy="1.57079632679 0 0"/>
+        <geometry><cylinder radius="$(arg wheel_radius)" length="$(arg wheel_width)"/></geometry>
+      </collision>
+    </link>
+    <joint name="${name}_wheel_joint" type="continuous">
+      <parent link="base_link"/>
+      <child link="${name}_wheel_link"/>
+      <origin xyz="0 ${side * 0.5 * $(arg wheel_separation)} $(arg wheel_radius)" rpy="0 0 0"/>
+      <axis xyz="0 1 0"/>
+    </joint>
+  </xacro:macro>
+  <xacro:wheel name="left" side="1"/>
+  <xacro:wheel name="right" side="-1"/>
 
   <link name="laser_link">
     <visual><geometry><cylinder radius="0.04" length="0.04"/></geometry></visual>
+    <collision><geometry><cylinder radius="0.04" length="0.04"/></geometry></collision>
   </link>
   <joint name="laser_joint" type="fixed">
     <parent link="base_link"/>
     <child link="laser_link"/>
-    <origin xyz="0.08 0 0.12" rpy="0 0 0"/>
-  </joint>
-
-  <link name="left_wheel_link"/>
-  <joint name="left_wheel_joint" type="continuous">
-    <parent link="base_link"/><child link="left_wheel_link"/>
-    <origin xyz="0 0.13 0" rpy="1.5708 0 0"/>
-    <axis xyz="0 0 1"/>
-  </joint>
-
-  <link name="right_wheel_link"/>
-  <joint name="right_wheel_joint" type="continuous">
-    <parent link="base_link"/><child link="right_wheel_link"/>
-    <origin xyz="0 -0.13 0" rpy="1.5708 0 0"/>
-    <axis xyz="0 0 1"/>
+    <origin xyz="$(arg laser_x) $(arg laser_y) $(arg laser_z)" rpy="0 0 0"/>
   </joint>
 </robot>

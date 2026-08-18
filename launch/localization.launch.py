@@ -15,14 +15,16 @@ def generate_launch_description():
     params = LaunchConfiguration("slam_params_file")
     use_sim_time = LaunchConfiguration("use_sim_time")
     scan_topic = LaunchConfiguration("scan_topic")
+    map_file_name = LaunchConfiguration("map_file_name")
     node = LifecycleNode(
         package="slam_toolbox",
-        executable="async_slam_toolbox_node",
+        executable="localization_slam_toolbox_node",
         name="slam_toolbox",
         output="screen",
         parameters=[
             ParameterFile(params, allow_substs=True),
-            {"use_sim_time": use_sim_time, "scan_topic": scan_topic},
+            {"use_sim_time": use_sim_time, "scan_topic": scan_topic,
+             "map_file_name": map_file_name},
         ],
     )
     configure = EmitEvent(
@@ -45,8 +47,9 @@ def generate_launch_description():
     return LaunchDescription([
         DeclareLaunchArgument("use_sim_time", default_value="false"),
         DeclareLaunchArgument("scan_topic", default_value="/scan"),
+        DeclareLaunchArgument("map_file_name", description="Serialized slam_toolbox map base path"),
         DeclareLaunchArgument(
-            "slam_params_file", default_value=str(pkg / "config" / "slam_toolbox.yaml")
+            "slam_params_file", default_value=str(pkg / "config" / "slam_localization.yaml")
         ),
         node, configure, activate,
     ])

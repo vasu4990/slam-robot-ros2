@@ -1,0 +1,11 @@
+maturity:
+  reference:
+    required: [static_contracts_passed]
+  ros-build-ready:
+    required: [static_contracts_passed, ros_build_passed]
+  simulation-validated:
+    required: [static_contracts_passed, ros_build_passed, launch_smoke_passed, simulation_slam_passed]
+  hardware-mapping-validated:
+    required: [static_contracts_passed, ros_build_passed, hardware_tf_passed, hardware_mapping_passed, loop_closure_validated]
+  hardware-localization-validated:
+    required: [static_contracts_passed, ros_build_passed, hardware_tf_passed, localization_validated]

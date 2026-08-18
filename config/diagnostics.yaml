@@ -1,0 +1,21 @@
+slam_health_monitor:
+  ros__parameters:
+    scan_topic: /scan
+    odom_topic: /odom
+    map_topic: /map
+    diagnostics_topic: /diagnostics
+    scan_min_hz: 5.0
+    odom_min_hz: 15.0
+    scan_stale_sec: 1.0
+    odom_stale_sec: 0.5
+    map_stale_sec: 8.0
+    report_period_sec: 1.0
+
+slam_tf_monitor:
+  ros__parameters:
+    diagnostics_topic: /diagnostics
+    odom_frame: odom
+    base_frame: base_footprint
+    laser_frame: laser_link
+    tf_stale_sec: 1.0
+    report_period_sec: 1.0
