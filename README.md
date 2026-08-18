@@ -1,235 +1,188 @@
-# SLAM Robot — ROS 2
+# SLAM Robot — ROS 2 + Gazebo Ground-Truth Benchmarking
 
 [![Engineering CI](https://github.com/vasu4990/slam-robot-ros2/actions/workflows/checks.yml/badge.svg)](https://github.com/vasu4990/slam-robot-ros2/actions/workflows/checks.yml)
 
-An engineering-grade ROS 2 stack for a small differential-drive robot performing **2D LiDAR SLAM and pose-graph localization with `slam_toolbox`**.
+An engineering-grade ROS 2 stack for a differential-drive robot performing **2D LiDAR SLAM, pose-graph localization, Gazebo physics simulation, and quantitative trajectory benchmarking**.
 
-The project is built around a strict robotics contract: sensor/odometry quality first, unambiguous TF ownership, lifecycle-managed mapping/localization, standard diagnostics, repeatable rosbag experiments, machine-readable validation state, and CI that checks both offline contracts and a real ROS build.
+> **Reference platform:** ROS 2 **Lyrical Luth (LTS)** + Gazebo **Jetty**.  
+> **Status:** simulation architecture and offline evaluators are implemented; a successful Gazebo runtime, SLAM benchmark, rosbag regression, and physical-robot validation are still evidence-gated.
 
-> **Reference platform:** ROS 2 **Lyrical Luth (LTS)**.  
-> **Status:** software/reference architecture upgraded; simulation and physical-robot mapping/localization remain explicitly unvalidated until evidence is recorded.
+## What is now in this repository
 
-## Why this repository is different
+- lifecycle-managed `slam_toolbox` mapping and localization;
+- strict `map -> odom -> base_footprint -> base_link -> laser_link` ownership;
+- Gazebo Jetty physics world with loop-rich indoor geometry;
+- differential-drive physics with wheel-derived odometry;
+- 360° noisy simulated LiDAR;
+- a separate Gazebo world-pose odometry publisher bridged as `/ground_truth/odom`;
+- explicit ROS↔Gazebo bridge configuration;
+- deterministic square-loop benchmark driver;
+- runtime trajectory recorder comparing ground truth against `map -> base_footprint`;
+- best-fit SE(2) ATE and fixed-delta RPE metrics;
+- long-horizon loop-closure revisit scoring;
+- occupancy-map quality metrics;
+- CPU/RSS process profiling;
+- repeatable rosbag record/replay scripts;
+- machine-readable benchmark thresholds and scenarios;
+- evidence-based maturity gates that keep simulation and hardware claims separate.
 
-A basic SLAM repository often contains a launch file, a YAML file and a URDF. This repository also includes:
-
-- mapping **and localization** lifecycle launches;
-- canonical `map -> odom -> base_footprint -> base_link -> laser_link` ownership;
-- `slam_toolbox` mapping/localization parameter profiles;
-- a structured differential-drive xacro model;
-- standard `/diagnostics` health reporting for scan, odometry, map and TF;
-- deterministic synthetic scan/odometry input for graph-level smoke tests;
-- machine-readable robot/topic/frame/geometry contracts;
-- config and URDF contract linters;
-- evidence-based maturity gates;
-- P2/P5 occupancy-map metrics;
-- odometry trace metrics;
-- reproducible rosbag benchmark guidance;
-- Lyrical build/test CI using ROS tooling;
-- failure-mode, tuning, validation and performance documentation.
-
-## Architecture
+## Simulation architecture
 
 ```mermaid
 flowchart LR
-    L[LiDAR driver] -->|/scan| S[slam_toolbox]
-    O[Odometry / state estimator] -->|/odom| S
-    O -->|odom -> base_footprint| TF[TF]
-    R[robot_state_publisher] -->|base_footprint -> base_link -> laser_link| TF
-    S -->|map -> odom| TF
-    S -->|/map| MAP[Occupancy map]
-    L --> H[Health monitor]
-    O --> H
-    MAP --> H
-    TF --> T[TF monitor]
-    H --> D[/diagnostics]
-    T --> D
+    CMD[/cmd_vel/] --> B[ros_gz_bridge]
+    B --> DD[Gazebo DiffDrive]
+    DD --> ODOM[/odom/]
+    GZ[Gazebo physics world] --> L[GPU LiDAR]
+    L --> SCAN[/scan/]
+    GZ --> GT[World-pose OdometryPublisher]
+    GT --> GTO[/ground_truth/odom/]
+    SCAN --> SLAM[slam_toolbox]
+    ODOM --> SLAM
+    SLAM --> MAP[/map + map->odom/]
+    MAP --> REC[trajectory_recorder]
+    GTO --> REC
+    REC --> CSV[trajectory.csv]
+    CSV --> METRICS[ATE / RPE / loop metrics]
 ```
 
-See [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md).
+The Gazebo `DiffDrive` odometry is intentionally **not** used as ground truth. Ground truth comes from a separate Gazebo odometry publisher attached to the model and derived from simulator world pose.
 
-## TF contract
+## Run the physics simulator
+
+```bash
+ros2 launch slam_robot_ros2 simulation.launch.py headless:=false
+```
+
+Headless:
+
+```bash
+ros2 launch slam_robot_ros2 simulation.launch.py headless:=true
+```
+
+## Run SLAM + ground-truth recording
+
+```bash
+ros2 launch slam_robot_ros2 simulation_mapping.launch.py \
+  headless:=true \
+  record_trajectory:=true \
+  run_benchmark_driver:=true
+```
+
+The benchmark driver is simulation-only by default. It publishes a deterministic loop path from `config/benchmark_path.yaml`.
+
+## Record a regression rosbag
+
+```bash
+bash scripts/record_benchmark.sh gazebo_loop_square
+```
+
+Recorded topics include `/scan`, `/odom`, `/ground_truth/odom`, `/tf`, `/tf_static`, `/map`, `/diagnostics`, and `/clock`.
+
+Replay:
+
+```bash
+bash scripts/replay_benchmark.sh artifacts/bags/gazebo_loop_square
+```
+
+## Quantitative trajectory evaluation
+
+The recorder creates:
 
 ```text
-map                         <- slam_toolbox
-└── odom                    <- local odometry frame
-    └── base_footprint      <- base driver/state estimator publishes this edge
-        └── base_link       <- robot_state_publisher
-            ├── laser_link
-            ├── left_wheel_link
-            └── right_wheel_link
+stamp_s,gt_x,gt_y,gt_yaw,est_x,est_y,est_yaw
 ```
 
-**No two nodes should publish the same TF edge.** See [`docs/TF_CONTRACT.md`](docs/TF_CONTRACT.md).
+Evaluate it:
 
-## Repository structure
+```bash
+python tools/trajectory_metrics.py artifacts/trajectory.csv \
+  --output artifacts/trajectory-metrics.json
+python tools/loop_closure_metrics.py artifacts/trajectory.csv \
+  --output artifacts/loop-metrics.json
+```
+
+ATE uses best-fit rigid **SE(2) alignment only**. There is no scale correction, because a metric LiDAR SLAM system should preserve scale. RPE evaluates relative motion over a fixed sample delta.
+
+## Benchmark gate
+
+Simulation thresholds live in `benchmarks/thresholds.yaml` and are explicitly marked as regression targets, not hardware specifications.
+
+```bash
+bash scripts/evaluate_benchmark.sh artifacts/trajectory.csv artifacts/map.pgm
+```
+
+## CPU and memory profiling
+
+```bash
+python tools/process_profile.py \
+  --duration 90 \
+  --match slam_toolbox \
+  --match gz \
+  --match ros_gz_bridge \
+  --output artifacts/resource-profile.json
+```
+
+Compare resource results only on the same host / scenario / rendering mode.
+
+## Repository map
 
 ```text
-.
-├── config/
-│   ├── robot.yaml
-│   ├── diagnostics.yaml
-│   ├── slam_toolbox.yaml
-│   ├── slam_localization.yaml
-│   └── validation.yaml
-├── launch/
-│   ├── bringup.launch.py
-│   ├── mapping.launch.py
-│   ├── localization.launch.py
-│   ├── diagnostics.launch.py
-│   ├── robot_state.launch.py
-│   └── synthetic_smoke.launch.py
-├── slam_robot_ros2/
-│   ├── contracts.py
-│   ├── diagnostics.py
-│   ├── synthetic_inputs.py
-│   └── tf_monitor.py
-├── urdf/robot.urdf.xacro
-├── tools/
-│   ├── config_lint.py
-│   ├── generate_report.py
-│   ├── map_metrics.py
-│   ├── odom_metrics.py
-│   ├── release_gate.py
-│   └── urdf_lint.py
-├── tests/
-├── examples/
-└── docs/
+simulation/
+├── worlds/slam_lab.sdf
+└── models/slam_robot/{model.config,model.sdf}
+config/
+├── gazebo_bridge.yaml
+├── benchmark_path.yaml
+├── robot.yaml
+├── slam_toolbox.yaml
+└── slam_localization.yaml
+launch/
+├── simulation.launch.py
+├── simulation_mapping.launch.py
+├── mapping.launch.py
+└── localization.launch.py
+slam_robot_ros2/
+├── trajectory_recorder.py
+├── benchmark_driver.py
+├── diagnostics.py
+└── tf_monitor.py
+tools/
+├── trajectory_metrics.py
+├── loop_closure_metrics.py
+├── benchmark_gate.py
+├── simulation_lint.py
+├── process_profile.py
+├── map_metrics.py
+└── odom_metrics.py
+benchmarks/
+├── scenarios.yaml
+└── thresholds.yaml
 ```
 
-## Build
-
-On a supported ROS 2 Lyrical system:
-
-```bash
-mkdir -p ~/slam_ws/src
-cd ~/slam_ws/src
-git clone https://github.com/vasu4990/slam-robot-ros2.git
-cd ~/slam_ws
-rosdep install --from-paths src --ignore-src -r -y
-colcon build --symlink-install
-source install/setup.bash
-```
-
-## Preflight before mapping
-
-Your hardware stack must already provide `/scan`, `/odom`, and `odom -> base_footprint`.
-
-```bash
-ros2 topic hz /scan
-ros2 topic hz /odom
-ros2 run tf2_ros tf2_echo odom base_footprint
-ros2 run tf2_ros tf2_echo base_link laser_link
-```
-
-Then run the monitors:
-
-```bash
-ros2 launch slam_robot_ros2 diagnostics.launch.py
-ros2 topic echo /diagnostics
-```
-
-## Mapping
-
-```bash
-ros2 launch slam_robot_ros2 bringup.launch.py mode:=mapping use_sim_time:=false
-```
-
-Or only the SLAM lifecycle node:
-
-```bash
-ros2 launch slam_robot_ros2 mapping.launch.py
-```
-
-## Localization
-
-Use a **serialized SLAM Toolbox pose graph**:
-
-```bash
-ros2 launch slam_robot_ros2 localization.launch.py \
-  map_file_name:=/absolute/path/to/site_map
-```
-
-See [`docs/LOCALIZATION_WORKFLOW.md`](docs/LOCALIZATION_WORKFLOW.md).
-
-## Synthetic graph smoke test
-
-```bash
-ros2 launch slam_robot_ros2 synthetic_smoke.launch.py
-```
-
-This publishes deterministic fake `/scan`, `/odom` and `odom -> base_footprint` so the package graph/diagnostics can be exercised without hardware.
-
-**It is not a physics simulation and must not be used as SLAM-performance evidence.**
-
-## Offline engineering checks
-
-```bash
-python -m pip install -r requirements-dev.txt
-pytest -q
-python tools/config_lint.py
-python tools/urdf_lint.py
-python tools/map_metrics.py examples/sample_map.pgm
-python tools/odom_metrics.py examples/sample_odom.csv
-python tools/generate_report.py
-python tools/release_gate.py reference
-```
-
-## Evidence-based maturity
-
-The source of truth is [`config/robot.yaml`](config/robot.yaml).
+## Evidence maturity
 
 | Gate | Current |
 |---|---|
 | Static engineering reference | ✅ |
-| ROS build ready | ❌ until ROS CI/build evidence |
-| Launch smoke validated | ❌ |
-| Simulation SLAM validated | ❌ |
-| Hardware TF validated | ❌ |
-| Hardware mapping validated | ❌ |
-| Loop closure validated | ❌ |
-| Localization validated | ❌ |
+| Gazebo model/world contract | ✅ |
+| ROS Lyrical build | ❌ until CI evidence |
+| Gazebo runtime | ❌ until launch evidence |
+| Ground-truth bridge | ❌ until runtime evidence |
+| SLAM simulation benchmark | ❌ |
+| ATE/RPE benchmark | ❌ |
+| Loop-closure benchmark | ❌ |
+| Resource profile | ❌ |
+| Rosbag replay regression | ❌ |
+| Hardware TF/mapping | ❌ |
+| Hardware localization | ❌ |
 
-The gates are deliberately conservative. A green README checkbox is not evidence.
+This is intentional. `config/robot.yaml` is the source of truth; simulation success is not allowed to silently become a physical-robot claim.
 
-## Calibration warning
+## Physical robot next step
 
-The URDF dimensions are **reference placeholders**, not measured geometry. Before using a real robot:
-
-- measure wheel radius;
-- measure wheel separation;
-- measure LiDAR XYZ/RPY pose;
-- calibrate odometry scale/heading;
-- verify scan timestamps/ranges/frame;
-- record a short rosbag and inspect TF.
-
-See [`docs/HARDWARE_BRINGUP.md`](docs/HARDWARE_BRINGUP.md).
-
-## Reproducible SLAM tuning
-
-Do not tune from memory. Record a bag:
-
-```bash
-ros2 bag record /scan /odom /tf /tf_static /diagnostics
-```
-
-Replay the same dataset for competing parameter sets and preserve map/metric artifacts. See [`docs/ROSBAG_BENCHMARK.md`](docs/ROSBAG_BENCHMARK.md) and [`docs/TUNING.md`](docs/TUNING.md).
-
-## Documentation
-
-- [Architecture](docs/ARCHITECTURE.md)
-- [TF contract](docs/TF_CONTRACT.md)
-- [Sensor/odometry contract](docs/SENSOR_ODOMETRY_CONTRACT.md)
-- [Hardware bring-up](docs/HARDWARE_BRINGUP.md)
-- [Mapping workflow](docs/MAPPING_WORKFLOW.md)
-- [Localization workflow](docs/LOCALIZATION_WORKFLOW.md)
-- [SLAM tuning](docs/TUNING.md)
-- [Rosbag benchmark](docs/ROSBAG_BENCHMARK.md)
-- [Validation plan](docs/VALIDATION_PLAN.md)
-- [Failure modes](docs/FAILURE_MODES.md)
-- [Performance benchmark](docs/PERFORMANCE_BENCHMARK.md)
-- [Engineering requirements](docs/REQUIREMENTS.md)
+The hardware stage requires actual LiDAR + encoder evidence: measured wheel radius/separation, encoder resolution, LiDAR pose and timing, TF audit, real rosbags, map artifacts, repeatability runs and failure notes. See `docs/HARDWARE_EVIDENCE.md`.
 
 ## License
 
-MIT — see [`LICENSE`](LICENSE).
+MIT — see `LICENSE`.
