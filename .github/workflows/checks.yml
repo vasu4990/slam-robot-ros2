@@ -59,10 +59,31 @@ jobs:
           echo 'Expected: hardware mapping remains evidence-gated.'
       - uses: actions/upload-artifact@v4
         with: {name: slam-engineering-artifacts, path: artifacts/, if-no-files-found: error}
+
   ros-lyrical-build:
     runs-on: ubuntu-26.04
     steps:
+      - uses: actions/checkout@v4
       - uses: ros-tooling/setup-ros@v0.7
-        with: {required-ros-distributions: lyrical}
-      - uses: ros-tooling/action-ros-ci@v0.4
-        with: {package-name: slam_robot_ros2, target-ros2-distro: lyrical, coverage-result: false}
+        with:
+          required-ros-distributions: lyrical
+      - name: Install ROS package dependencies
+        shell: bash
+        run: |
+          set -euo pipefail
+          source /opt/ros/lyrical/setup.bash
+          rosdep install --from-paths . --ignore-src -r -y --rosdistro lyrical
+      - name: Build package
+        shell: bash
+        run: |
+          set -euo pipefail
+          source /opt/ros/lyrical/setup.bash
+          colcon build --event-handlers console_direct+ --packages-select slam_robot_ros2
+      - name: Test package
+        shell: bash
+        run: |
+          set -euo pipefail
+          source /opt/ros/lyrical/setup.bash
+          source install/setup.bash
+          colcon test --event-handlers console_direct+ --packages-select slam_robot_ros2
+          colcon test-result --verbose
